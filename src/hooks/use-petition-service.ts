@@ -8,7 +8,7 @@ export interface PetitionFormData {
   idare_adresi: string;
   basvuru_sahibi: string;
   kimlik_numarasi: string;
-  vekil_bilgisi: string;
+  vekil_bilgisi?: string;
   ihale_kayit_numarasi: string;
   ihale_adi: string;
   farkina_varildigi_tarih: string;

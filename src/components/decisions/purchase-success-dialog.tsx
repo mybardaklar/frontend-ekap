@@ -129,11 +129,7 @@ export function PurchaseSuccessDialog({
         <div className="space-y-4 mt-2">
           <div>
             <h3 className="font-bold text-lg leading-snug">{selectedProduct.baslik}</h3>
-            {selectedProduct.cevap && (
-              <p className="text-destructive text-lg mt-2 font-medium">
-                {selectedProduct.cevap}
-              </p>
-            )}
+
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {selectedProduct.public_product_no && (
                 <Badge variant="outline" className="text-sm">

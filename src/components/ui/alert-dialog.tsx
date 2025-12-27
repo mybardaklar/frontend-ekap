@@ -38,7 +38,7 @@ const AlertDialogContent = React.forwardRef<
         className
       )}
       {...props}
-      ref={ref}
+
     />
   </AlertDialogPortal>
 ))
