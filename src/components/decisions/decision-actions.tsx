@@ -78,14 +78,14 @@ export function DecisionActions({ decision, hasCourtDecision, isAdmin }: Decisio
   };
 
   return (
-    <div className="mt-8 flex gap-4 border-t pt-6">
-      <Button variant="outline" className="flex-1" onClick={handleView}>
+    <div className="flex gap-3 pt-2">
+      <Button onClick={handleView} className="flex-1" variant="outline">
         <Eye className="mr-2 h-4 w-4" />
-        Tam Metni Görüntüle
+        İncele
       </Button>
-      <Button variant="outline" className="flex-1" onClick={handleDownloadPdf}>
+      <Button onClick={handleDownloadPdf} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
         <Download className="mr-2 h-4 w-4" />
-        PDF Olarak İndir
+        PDF İndir
       </Button>
     </div>
   );

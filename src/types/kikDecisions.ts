@@ -19,6 +19,7 @@ export interface UrunBilgisi {
   karar_sonucu?: string | null;
   baslik_metin_xxx?: string | null;
   link?: string | null;
+  cevap?: string | null;
 }
 
 export interface KararDetayi {

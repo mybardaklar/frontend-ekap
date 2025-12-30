@@ -68,7 +68,7 @@ export function PurchasesList({ purchases, currentPage, totalPages }: PurchasesL
                 <FileText className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">
                   {item.baslik || "Başlıksız Karar"}
                 </h4>
                 <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">

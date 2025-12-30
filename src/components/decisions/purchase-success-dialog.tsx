@@ -41,6 +41,7 @@ export function PurchaseSuccessDialog({
   selectedProduct,
 }: PurchaseSuccessDialogProps) {
   const [fullBaslikMetin, setFullBaslikMetin] = useState<string>('');
+  const [cevap, setCevap] = useState<string>('');
   const [decisionDetail, setDecisionDetail] = useState<KararDetayi | null>(null);
   const supabase = createClient();
 
@@ -51,12 +52,13 @@ export function PurchaseSuccessDialog({
           // 1. Fetch full baslik_metin
           const { data: productData, error: productError } = await supabase
             .from('urun_bilgileri')
-            .select('baslik_metin')
+            .select('baslik_metin, cevap')
             .eq('id', selectedProduct.id)
             .maybeSingle();
 
           if (productData && !productError) {
             setFullBaslikMetin(productData.baslik_metin || '');
+            setCevap(productData.cevap || '');
           }
 
           // 2. Fetch decision detail (date, text)
@@ -148,9 +150,19 @@ export function PurchaseSuccessDialog({
               )}
             </div>
 
+            {cevap && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900">
+                 <h4 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">Cevap:</h4>
+                 <p className="text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                   {cevap}
+                 </p>
+              </div>
+            )}
+
             {fullBaslikMetin && (
               <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                 <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-4 whitespace-pre-wrap">
+                 <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-1">Kararda Geçtiği Bölüm:</h4>
+                 <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
                    {fullBaslikMetin}
                  </p>
               </div>

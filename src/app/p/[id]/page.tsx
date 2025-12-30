@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CreditCard, CheckCircle, Shield, Scale, Share2, AlertTriangle, ArrowLeft, Download, Eye } from "lucide-react";
+import { CreditCard, CheckCircle, Shield, Scale, Share2, AlertTriangle, ArrowLeft, Download, Eye, Calendar } from "lucide-react";
 import Link from 'next/link';
 import { BackButton } from "@/components/ui/back-button";
 import { getDecisionBadgeColor } from '@/utils/decisionUtils';
@@ -116,14 +116,22 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
   const decision: UrunBilgisi = product;
 
   // 2.1 Check if purchased (Now that we have the product ID)
+  let purchaseDate: string | null = null;
+
   if (user && !isAdmin) {
        const { data: purchase } = await supabase
         .from('user_purchases')
-        .select('id')
+        .select('created_at')
         .eq('user_id', user.id)
         .eq('product_id', decision.id) // Use the resolved UUID
         .maybeSingle();
-       if (purchase) isPurchased = true;
+       if (purchase) {
+         isPurchased = true;
+         purchaseDate = purchase.created_at;
+       }
+  } else if (isAdmin) {
+      // For admins, just show current date as they have implicit access
+      purchaseDate = new Date().toISOString();
   }
 
   // 3. Determine specific content to show
@@ -160,104 +168,80 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
         {/* Header Section */}
         <div className="p-6 md:p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight mb-4">
-             {title}
+             {decision.baslik}
            </h1>
 
-           <div className="flex flex-wrap items-center gap-2 md:gap-3">
-             {/* Decision No Badge */}
-             {isAdmin ? (
-              <Badge variant="outline" className="text-sm font-medium bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700">
-                Karar No: {decision.karar_no}
-              </Badge>
-             ) : (
-               (decision.public_product_no || decision.karar_no) && (
-                 <Badge variant="outline" className="text-sm font-medium bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700">
-                   Ürün No: {decision.public_product_no || decision.karar_no}
-                 </Badge>
-               )
+           <div className="flex items-center gap-2 flex-wrap">
+             {decision.public_product_no && (
+               <Badge variant="outline" className="text-sm">
+                 Ürün No: {decision.public_product_no}
+               </Badge>
              )}
-
-             {/* Result Badge */}
+             {(isAdmin || isPurchased) && (
+               <Badge variant="outline" className="text-sm">Karar No: {decision.karar_no}</Badge>
+             )}
              <Badge className={`text-sm ${getDecisionBadgeColor(decision.karar_sonucu || null, isCourtDecision)}`}>
                {decision.karar_sonucu || "Sonuç Belirsiz"}
              </Badge>
 
-             {/* Court Decision Badge */}
-             {isCourtDecision && (
-               <Badge className="text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700">
-                 <Scale className="h-3 w-3 mr-1" />
-                 Mahkeme Kararı
-               </Badge>
-             )}
-
-             {/* Category Badge */}
              {decision.kategori && (
-               <Badge className="text-sm font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-700">
+               <Badge variant="secondary" className="text-sm bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
                  {decision.kategori}
                </Badge>
              )}
-
-             {/* Admin Badge */}
-             {isAdmin && (
-               <Badge className="text-sm font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-700">
-                 <Shield className="h-3 w-3 mr-1" />
-                 Yönetici
-               </Badge>
-             )}
            </div>
-
-           {isCourtDecision && (
-             <p className="mt-4 text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center">
-               <Scale className="h-4 w-4 mr-2" />
-               Bu karara ait Mahkeme Kararı bulunmaktadır.
-             </p>
-           )}
         </div>
 
         {/* Content Section */}
-        <div className="p-6 md:p-8">
-          {/* Main Content */}
-          <div className="prose dark:prose-invert max-w-none">
-             <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed text-lg">
-                {contentToShow}
-             </p>
-          </div>
+        <div className="p-6 md:p-8 space-y-4">
 
-          <div className="mt-8">
-            <Alert className="bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
-              <AlertTriangle className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-              <AlertDescription className="text-sm text-gray-700 dark:text-gray-300">
-                <strong>Uyarı:</strong> Karar içeriği sistem tarafından işlenmiştir. Nihai doğruluk için orijinal metne başvurunuz.
-              </AlertDescription>
-            </Alert>
-          </div>
-
-
-          {/* Unlocked Indicator */}
-          {isPurchased && (
-            <div className="mb-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3">
-               <div className="bg-green-100 dark:bg-green-800 p-2 rounded-full">
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-               </div>
-               <div>
-                 <h4 className="font-semibold text-green-900 dark:text-green-100">Erişim Açık</h4>
-                 <p className="text-sm text-green-700 dark:text-green-300">Bu kararı satın aldınız. Tam metni aşağıda görüntüleyebilirsiniz.</p>
-               </div>
+          {(isAdmin || isPurchased) && decision.cevap && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900">
+               <h4 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">Cevap:</h4>
+               <p className="text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                 {decision.cevap}
+               </p>
             </div>
           )}
 
-          {/* Purchase CTA */}
-          {(!isPurchased && !isAdmin) && (
-            <PurchaseCTA product={decision} price={decision.price_in_credits || 10} />
+          <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-1">
+                Kararda Geçtiği Bölüm:
+             </h4>
+             <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+               {(() => {
+                 const text = decision.baslik_metin || decision.baslik_metin_xxx || '';
+                 const isLocked = !isAdmin && !isPurchased;
+                 const shouldTruncate = isLocked && text.length > 150;
+                 return shouldTruncate ? text.slice(0, 150) + '...' : text;
+               })()}
+             </p>
+          </div>
+
+          {!isPurchased && !isAdmin && (
+             <PurchaseCTA product={decision} price={decision.price_in_credits || 10} />
           )}
 
-          {/* Actions for Purchased/Admin Users */}
-          {(isAdmin || isPurchased) && (
-            <DecisionActions
-              decision={decision}
-              hasCourtDecision={!!isCourtDecision}
-              isAdmin={isAdmin}
-            />
+          {(isPurchased || isAdmin) && (
+            <>
+              <div className="flex items-center justify-between text-sm text-muted-foreground border-t pt-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                   {decision.tarih ? new Date(decision.tarih).toLocaleDateString('tr-TR') : (
+                       "Tarih bilgisi detayda"
+                   )}
+                </div>
+                <div>
+                   İşlem Tarihi: {purchaseDate ? new Date(purchaseDate).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR')}
+                </div>
+              </div>
+
+              <DecisionActions
+                decision={decision}
+                hasCourtDecision={!!isCourtDecision}
+                isAdmin={isAdmin}
+              />
+            </>
           )}
 
         </div>
