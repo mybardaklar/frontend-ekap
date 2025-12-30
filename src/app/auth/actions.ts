@@ -43,9 +43,14 @@ export async function signup(data: z.infer<typeof signUpSchema>) {
 
   const { email, password } = result.data
 
+  const origin = (await headers()).get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
+    },
   })
 
   if (error) {

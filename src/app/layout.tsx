@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 import { Toaster } from "@/components/ui/sonner"
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { AuthDialog } from "@/components/auth/auth-dialog"
+import { VerificationToast } from "@/components/auth/verification-toast"
 
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
@@ -65,6 +66,7 @@ export default async function RootLayout({
               <Footer />
               <Suspense fallback={null}>
                 <AuthDialog />
+                <VerificationToast />
               </Suspense>
               <Toaster richColors />
               <GlobalLoader />

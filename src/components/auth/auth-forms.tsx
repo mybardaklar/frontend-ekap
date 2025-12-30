@@ -1,5 +1,6 @@
 'use client'
 
+import { getURL } from "@/utils/get-url"
 import { createClient } from "@/utils/supabase/client"
 
 import { useForm } from "react-hook-form"
@@ -102,7 +103,7 @@ export function SignInForm({ onSuccess }: AuthFormProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${getURL()}auth/callback`,
         },
       })
       if (error) {
@@ -227,6 +228,7 @@ export function SignUpForm() {
 
   const { showLoader, hideLoader } = useGlobalLoader();
   const [isLoading, setIsLoading] = useState(false);
+  const [, setModal] = useQueryState('modal')
 
   const supabase = createClient()
 
@@ -236,7 +238,7 @@ export function SignUpForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${getURL()}auth/callback`,
         },
       })
        if (error) {
@@ -254,6 +256,8 @@ export function SignUpForm() {
     }
   }
 
+  const [checkEmail, setCheckEmail] = useState(false)
+
   async function onSubmit(values: z.infer<typeof signUpSchema>) {
     setIsLoading(true);
     showLoader();
@@ -264,7 +268,8 @@ export function SignUpForm() {
           style: { backgroundColor: '#fee2e2', color: '#dc2626', borderColor: '#fca5a5' },
         })
       } else {
-        toast.success(res?.message || "Success!", {
+        setCheckEmail(true)
+        toast.success("Hesap oluşturuldu! Lütfen e-postanızı kontrol edin.", {
           style: { backgroundColor: '#dcfce7', color: '#16a34a', borderColor: '#86efac' },
         })
       }
@@ -272,6 +277,32 @@ export function SignUpForm() {
       hideLoader();
       setIsLoading(false);
     }
+  }
+
+  if (checkEmail) {
+    return (
+      <div className="flex flex-col items-center justify-center space-y-4 py-8 px-4 text-center animate-in fade-in duration-300">
+        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <h2 className="text-2xl font-semibold tracking-tight">E-postanızı Kontrol Edin</h2>
+        <p className="text-muted-foreground max-w-sm">
+          Aktivasyon bağlantısını <strong>{form.getValues().email}</strong> adresine gönderdik.
+          Lütfen gelen kutunuzu (ve spam klasörünü) kontrol ederek hesabınızı doğrulayın.
+        </p>
+
+        <div className="pt-6 w-full space-y-2">
+            <Button variant="outline" className="w-full" onClick={() => setModal('sign_in')}>
+                Giriş Yap Ekranına Dön
+            </Button>
+            <p className="text-xs text-muted-foreground mt-4">
+               E-posta gelmedi mi? <button onClick={() => setCheckEmail(false)} className="underline hover:text-primary">Tekrar dene</button>
+            </p>
+        </div>
+      </div>
+    )
   }
 
   return (
