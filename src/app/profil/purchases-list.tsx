@@ -1,4 +1,5 @@
 import { UrunBilgisi } from "@/types/kikDecisions";
+import { DecisionActions } from "@/components/decisions/decision-actions";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ export function PurchasesList({ purchases, currentPage, totalPages }: PurchasesL
         return (
           <div
             key={item.id}
-            className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border rounded-lg hover:border-blue-200 transition-colors"
+            className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white dark:bg-zinc-900 border rounded-lg hover:border-blue-200 transition-colors gap-4"
           >
             <div className="flex items-start gap-4">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg mt-1">
@@ -79,12 +80,20 @@ export function PurchasesList({ purchases, currentPage, totalPages }: PurchasesL
               </div>
             </div>
 
-            <Button asChild size="sm" variant="outline">
-              <Link href={targetUrl}>
-                Görüntüle
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="flex flex-col gap-2 min-w-[240px]">
+                 <DecisionActions
+                    decision={item}
+                    isAdmin={false}
+                    hasCourtDecision={false}
+                    highlightSummary={item.baslik_metin || undefined}
+                />
+                 <Button asChild size="sm" variant="secondary" className="w-full">
+                  <Link href={targetUrl}>
+                    Sayfaya Git
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+            </div>
           </div>
         );
       })}

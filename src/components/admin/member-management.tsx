@@ -92,25 +92,19 @@ export function MemberManagement({ users, refreshUsers, loading }: MemberManagem
 
   const handleDeleteUser = async (userId: string, email: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: userId, email }
+      });
 
-      // Note: This relies on a Supabase Edge Function which might need configuration
-      const res = await fetch(
-        'https://kodwclnacadhnnmfpvmi.functions.supabase.co/admin-delete-user',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-          body: JSON.stringify({ user_id: userId, email }),
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `Silme başarısız (status: ${res.status})`);
+      if (error) {
+        throw new Error(error.message || "Fonksiyon çağrısı başarısız");
       }
+
+      if (!data?.success) {
+        throw new Error(data?.error || "Silme başarısız");
+      }
+
+
 
       toast.success("Üye başarıyla silindi.");
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Eye } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -7,6 +8,13 @@ import { toast } from "sonner";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import { UrunBilgisi } from "@/types/kikDecisions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { highlightMatchingWords } from "@/utils/highlight-utils";
 
 // Initialize pdfMake
 // @ts-ignore
@@ -24,10 +32,16 @@ interface DecisionActionsProps {
   decision: UrunBilgisi;
   hasCourtDecision: boolean;
   isAdmin: boolean;
+  fullText?: string;
+  highlightSummary?: string;
+  openInNewTab?: boolean;
 }
 
-export function DecisionActions({ decision, hasCourtDecision, isAdmin }: DecisionActionsProps) {
+export function DecisionActions({ decision, hasCourtDecision, isAdmin, fullText, highlightSummary, openInNewTab }: DecisionActionsProps) {
   const supabase = createClient();
+  const [showModal, setShowModal] = useState(false);
+
+  const [fetchedText, setFetchedText] = useState<string>("");
 
   // Helper: Fetch combined or single text
   const fetchDecisionText = async () => {
@@ -48,15 +62,32 @@ export function DecisionActions({ decision, hasCourtDecision, isAdmin }: Decisio
   };
 
   const handleView = async () => {
-    const data = await fetchDecisionText();
-    if (!data?.karar) {
-        toast.error("Karar metni bulunamadı.");
+    // Legacy New Tab Behavior
+    if (openInNewTab) {
+        const data = await fetchDecisionText();
+        if (!data?.karar) {
+            toast.error("Karar metni bulunamadı.");
+            return;
+        }
+        const blob = new Blob([data.karar], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
         return;
     }
 
-    const blob = new Blob([data.karar], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    // Modal Behavior
+    if (fullText) {
+        setShowModal(true);
+        return;
+    }
+
+    const data = await fetchDecisionText();
+    if (data?.karar) {
+        setFetchedText(data.karar);
+        setShowModal(true);
+    } else {
+        toast.error("Karar metni bulunamadı.");
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -78,15 +109,39 @@ export function DecisionActions({ decision, hasCourtDecision, isAdmin }: Decisio
   };
 
   return (
-    <div className="flex gap-3 pt-2">
-      <Button onClick={handleView} className="flex-1" variant="outline">
-        <Eye className="mr-2 h-4 w-4" />
-        İncele
-      </Button>
-      <Button onClick={handleDownloadPdf} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-        <Download className="mr-2 h-4 w-4" />
-        PDF İndir
-      </Button>
-    </div>
+    <>
+      <div className="flex gap-3 pt-2">
+        <Button onClick={handleView} className="flex-1" variant="outline">
+          <Eye className="mr-2 h-4 w-4" />
+          İncele
+        </Button>
+        <Button onClick={handleDownloadPdf} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+          <Download className="mr-2 h-4 w-4" />
+          PDF İndir
+        </Button>
+      </div>
+
+       <Dialog open={showModal} onOpenChange={setShowModal}>
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Karar İnceleme: {decision.karar_no}</DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 overflow-y-auto min-h-0 p-4 border rounded-md bg-gray-50 dark:bg-gray-900">
+                     <div
+                        className="prose prose-sm max-w-none text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap"
+                        dangerouslySetInnerHTML={{
+                            __html: highlightMatchingWords(
+                                highlightSummary || '',
+                                fullText || fetchedText || ''
+                            )
+                        }}
+                      />
+                </div>
+                <div className="flex justify-end pt-4">
+                    <Button onClick={() => setShowModal(false)} variant="outline">Kapat</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    </>
   );
 }

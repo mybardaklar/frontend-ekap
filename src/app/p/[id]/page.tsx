@@ -14,6 +14,7 @@ import { UrunBilgisi, KararDetayi } from '@/types/kikDecisions';
 import { PurchaseCTA } from '@/components/decisions/purchase-cta';
 import { DecisionActions } from '@/components/decisions/decision-actions';
 
+
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -204,16 +205,17 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
             </div>
           )}
 
-          <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-1">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-2">
                 Kararda Geçtiği Bölüm:
              </h4>
-             <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+             <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
                {(() => {
                  const text = decision.baslik_metin || decision.baslik_metin_xxx || '';
-                 const isLocked = !isAdmin && !isPurchased;
-                 const shouldTruncate = isLocked && text.length > 150;
-                 return shouldTruncate ? text.slice(0, 150) + '...' : text;
+                 if (!isAdmin && !isPurchased && text.length > 200) {
+                    return text.slice(0, 200) + '...';
+                 }
+                 return text;
                })()}
              </p>
           </div>
@@ -224,7 +226,7 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
 
           {(isPurchased || isAdmin) && (
             <>
-              <div className="flex items-center justify-between text-sm text-muted-foreground border-t pt-3">
+              <div className="flex items-center justify-between text-sm text-muted-foreground border-t pt-3 mt-4">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
                    {decision.tarih ? new Date(decision.tarih).toLocaleDateString('tr-TR') : (
@@ -240,6 +242,7 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
                 decision={decision}
                 hasCourtDecision={!!isCourtDecision}
                 isAdmin={isAdmin}
+                openInNewTab={true}
               />
             </>
           )}

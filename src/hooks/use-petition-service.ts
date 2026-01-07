@@ -70,14 +70,20 @@ export const usePetitionService = () => {
         return { success: false, error: error.message };
       }
 
-      if (data.current_balance !== undefined) {
-        toast.error("Yetersiz Kredi", {
-          description: `Mevcut bakiyeniz: ${data.current_balance} kredi. Gerekli: ${data.required_amount} kredi.`,
-        });
-        return { success: false, ...data };
-      }
+      // Handle insufficient credits or other functional errors returned by the edge function
+      if (data.error || (data.success === false)) {
+        if (data.current_balance !== undefined) {
+            toast.error("Yetersiz Kredi", {
+              description: `Mevcut bakiyeniz: ${data.current_balance} kredi. Gerekli: ${data.required_amount} kredi.`,
+            });
+            return { success: false, ...data };
+        }
 
-    //   console.log('Petition created successfully:', data);
+        toast.error("Hata", {
+             description: data.error || "İşlem başarısız",
+        });
+        return { success: false, error: data.error };
+      }
 
       toast.success("Başarılı", {
         description: data.message || "Dilekçeniz başarıyla oluşturuldu",

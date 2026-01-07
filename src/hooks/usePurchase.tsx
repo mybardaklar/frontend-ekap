@@ -26,13 +26,13 @@ export function usePurchase() {
         return false;
       }
 
-      const { data, error } = await supabase.rpc('purchase_decision', {
-        decision_id: decisionId
+      const { data, error } = await supabase.functions.invoke('purchase-decision', {
+        body: { decisionId }
       });
 
       if (error) {
-        console.error('Purchase RPC Error:', error);
-        toast.error("Satın alma işlemi başarısız oldu.");
+        console.error('Purchase API Error:', error);
+        toast.error(error.message || "Satın alma işlemi başarısız oldu.");
         return false;
       }
 
@@ -41,7 +41,7 @@ export function usePurchase() {
         return false;
       }
 
-      toast.success("Karar başarıyla açıldı!");
+      toast.success(data.message || "Karar başarıyla açıldı!");
       // Dispatch custom event to update credit balance in header
       window.dispatchEvent(new Event('kik:credit_update'));
       // router.refresh(); // Moved to component level for better UX control
