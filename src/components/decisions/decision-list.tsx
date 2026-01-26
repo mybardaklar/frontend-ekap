@@ -43,19 +43,48 @@ export default async function DecisionList({ searchParams, page, pageSize }: Dec
     query = query.eq('kategori', category)
   }
 
+  let courtDecisionIds: string[] = [];
+
   if (hasCourtDecision) {
-    query = query.or('karar_sonucu.ilike.%mahkeme%,baslik.ilike.%mahkeme%')
+      // Legacy Parity: Fetch Products that have associated Court Decisions.
+      // 1. Get list of karar_no from mahkeme table matching ihale_karar_no
+      const { data: mahkemeData } = await supabase
+        .from('mahkeme')
+        .select('ihale_karar_no')
+        .not('ihale_karar_no', 'is', null);
+
+      if (mahkemeData) {
+          courtDecisionIds = mahkemeData.map(m => m.ihale_karar_no).filter((id): id is string => !!id);
+          // 2. Filter urun_bilgileri by these IDs
+          if (courtDecisionIds.length > 0) {
+             // Chunking not strictly needed for <2000 items usually, but good practice if >10000.
+             // Supabase postgrest limit is generous.
+             query = query.in('karar_no', courtDecisionIds);
+          } else {
+             query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+          }
+      }
   }
 
   // Apply pagination
   query = query.range(from, to)
 
-  const { data: decisions, error, count } = await query
+  const { data: rawData, error, count } = await query
 
   if (error) {
     console.error("Error fetching decisions:", error)
     return <div className="text-red-500">Kararlar yüklenirken bir hata oluştu.</div>
   }
+
+  const decisions: UrunBilgisi[] = (rawData || []).map((item: any) => {
+      // If we are in "Mahkeme Kararları" mode, we know it has one.
+      // If not, we could check if courtDecisionIds contains it (if we fetched list globally? No).
+      // For list consistency, trust 'hasCourtDecision' filter context.
+      return {
+          ...item,
+          hasCourtDecision: hasCourtDecision ? true : item.hasCourtDecision
+      } as UrunBilgisi;
+  });
 
   // Check user purchases / Admin status
   const { data: { user } } = await supabase.auth.getUser()
@@ -108,6 +137,9 @@ export default async function DecisionList({ searchParams, page, pageSize }: Dec
   return (
     <>
         <div className="flex flex-col gap-4 mb-8">
+        <div className="text-sm text-muted-foreground font-medium px-1">
+             Toplam {count || 0} karar bulundu
+        </div>
         {decisions.map((decision: UrunBilgisi) => (
             <DecisionItem
                 key={decision.id}

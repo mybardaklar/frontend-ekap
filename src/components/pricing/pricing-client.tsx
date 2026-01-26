@@ -14,27 +14,113 @@ export default function PricingClient() {
   const handlePurchase = async (packageCode: string) => {
     setLoading(packageCode);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
         toast.info("Satın alma işlemi için lütfen giriş yapın veya kayıt olun.");
         router.push('/?modal=sign_in');
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('paytr-payment', {
-        body: { packageCode }
+      // 1. Try standard invoke
+      try {
+        const { data, error } = await supabase.functions.invoke('paytr-payment', {
+          body: { packageCode }
+        });
+
+        if (!error && data?.iframe_url) {
+          window.location.href = data.iframe_url;
+          return;
+        }
+        console.warn("Edge Function invoke error result:", error);
+      } catch (invokeError) {
+        console.warn("Edge Function invoke threw exception:", invokeError);
+      }
+
+      console.warn("Attempting direct fetch fallback...");
+
+      // 2. Fallback: Direct Fetch
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          throw new Error('Supabase URL configuration missing');
+      }
+
+      const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/paytr-payment`;
+
+      const fallbackResponse = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ packageCode })
       });
 
-      if (error) throw error;
-
-      if (data?.iframe_url) {
-        window.location.href = data.iframe_url;
-      } else {
-        throw new Error('Ödeme linki alınamadı');
+      let fallbackData;
+      try {
+          fallbackData = await fallbackResponse.json();
+      } catch (e) {
+          const text = await fallbackResponse.text().catch(() => '');
+          throw new Error(`Sunucu hatası: ${text || fallbackResponse.statusText}`);
       }
+
+      if (!fallbackResponse.ok) {
+          console.error("Fallback error response:", fallbackData);
+
+          let errorMessage = 'Ödeme servisine ulaşılamadı (Bilinmeyen Hata).';
+
+          if (fallbackData) {
+              if (typeof fallbackData.error === 'string') {
+                  errorMessage = fallbackData.error;
+              } else if (fallbackData.error && typeof fallbackData.error === 'object') {
+                  errorMessage = fallbackData.error.message || JSON.stringify(fallbackData.error);
+              } else if (typeof fallbackData.message === 'string') {
+                  errorMessage = fallbackData.message;
+              } else {
+                  errorMessage = JSON.stringify(fallbackData);
+              }
+          }
+
+          throw new Error(errorMessage);
+      }
+
+      if (fallbackData?.iframe_url) {
+          window.location.href = fallbackData.iframe_url;
+      } else {
+          throw new Error('Ödeme linki alınamadı.');
+      }
+
     } catch (error: any) {
-      console.error("Payment error:", error);
-      toast.error(error.message || "Ödeme başlatılamadı.");
+      console.error("Payment error full object:", error);
+
+      let msg = "Ödeme başlatılamadı.";
+
+      if (typeof error === 'string') {
+          msg = error;
+      } else if (error && typeof error === 'object') {
+          if (error.message) {
+              msg = typeof error.message === 'string' ? error.message : JSON.stringify(error.message);
+          } else {
+              // Try to stringify the whole error object
+              try {
+                  msg = JSON.stringify(error, null, 2);
+              } catch {
+                  msg = "Critical Error (Unserializable Object)";
+              }
+          }
+      } else {
+          msg = String(error);
+      }
+
+      // Final safety check against "[object Object]"
+      if (msg === "[object Object]") {
+          msg = "Error content validation failed. Check console.";
+      }
+
+      // alert(`DEBUG: ${msg}`); // Uncomment if toast is broken
+      toast.error(msg);
     } finally {
       setLoading(null);
     }

@@ -101,20 +101,60 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
   } else if (isNumeric(id)) {
     query = query.eq('public_product_no', parseInt(id));
   } else {
-    // Check both exact match and prefixed path match for flexibility
     query = query.or(`link.eq.${id},link.eq./p/${id}`);
   }
 
-  const { data: product, error } = await query.single();
+  const { data: urunData } = await query.maybeSingle();
+  let product = urunData;
+  let isMahkemeRef = false;
 
-  if (error || !product) {
-    // Fallback: Check if it's a legacy link or try explicit decoding if needed
-    // For now, standard 404
+  if (!product && isUuid(id)) {
+      // Fallback: Try 'mahkeme' table
+      const { data: mahkemeData } = await supabase
+        .from('mahkeme')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (mahkemeData) {
+          isMahkemeRef = true;
+
+          const extractTitle = (text: string) => {
+              if (!text) return null;
+              const match = text.match(/BAŞVURUYA KONU İHALE:\s*([\s\S]*?)(?=\n[A-ZÇĞİÖŞÜ ]+:\s*|$)/);
+              if (match && match[1]) {
+                  let title = match[1].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+                  if (title.length > 200) title = title.substring(0, 200) + '...';
+                  return title;
+              }
+              return null;
+          };
+
+          const extracted = extractTitle(mahkemeData.karar);
+
+          product = {
+              id: mahkemeData.id,
+              karar_no: mahkemeData.karar_no,
+              baslik: extracted || `Mahkeme Kararı: ${mahkemeData.karar_no}`,
+              baslik_metin: mahkemeData.karar, // Full text in summary for now
+              karar_sonucu: 'Mahkeme Kararı',
+              kategori: 'Yargı Kararı',
+              tarih: mahkemeData.karar_tarihi,
+              price_in_credits: 0,
+              created_at: mahkemeData.created_at,
+              updated_at: mahkemeData.updated_at,
+              sunum_turu: 'Mahkeme',
+              hasCourtDecision: true
+          };
+      }
+  }
+
+  if (!product) {
     notFound();
   }
 
   // Cast to type
-  const decision: UrunBilgisi = product;
+  const decision: UrunBilgisi = product as UrunBilgisi;
 
   // 2.1 Check if purchased (Now that we have the product ID)
   let purchaseDate: string | null = null;
@@ -135,28 +175,55 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
       purchaseDate = new Date().toISOString();
   }
 
+  // Determine "isCourtDecision" based on available data
+  const isCourtDecision = !!decision.hasCourtDecision ||
+                          decision.karar_sonucu?.toLowerCase().includes('mahkeme') ||
+                          decision.baslik?.toLowerCase().includes('mahkeme');
+
   // 3. Determine specific content to show
   let contentToShow = decision.baslik_metin_xxx || decision.baslik_metin;
 
-  if (isAdmin || isPurchased) {
-    // Attempt to fetch full text from karar_detaylari
+  if (isMahkemeRef) {
+      // REQUIRE AUTHENTICATION for full view
+      if (user) {
+          contentToShow = decision.baslik_metin;
+          isPurchased = true;
+      }
+  } else if (isAdmin || isPurchased) {
+    // 1. Fetch KIK Decision Text
     const { data: detailData } = await supabase
       .from('karar_detaylari')
       .select('karar')
-      .eq('karar_no', decision.karar_no)
+      .eq('karar_no', decision.karar_no || '')
       .maybeSingle();
 
-    if (detailData?.karar) {
-        contentToShow = detailData.karar;
-    } else {
-        contentToShow = decision.baslik_metin;
+    let fullText = detailData?.karar || decision.baslik_metin || '';
+
+    // 2. Check for & Append Court Decision Text
+    // Always check for court decision if we are showing full details, regardless of flag,
+    // to ensure we don't miss any connected court rulings.
+    if (decision.karar_no) {
+         const { data: mahkemeData } = await supabase
+            .from('mahkeme')
+            .select('karar, karar_no, karar_tarihi')
+            .eq('ihale_karar_no', decision.karar_no)
+            .limit(1)
+            .maybeSingle();
+
+         if (mahkemeData) {
+             const courtText = `\n\n----------------------------------------\n` +
+                               `MAHKEME KARARI (${mahkemeData.karar_no})\n` +
+                               `Tarih: ${mahkemeData.karar_tarihi || '-'}\n` +
+                               `----------------------------------------\n\n` +
+                               mahkemeData.karar;
+             fullText += courtText;
+         }
     }
+
+    contentToShow = fullText;
   }
 
   // Helpers for UI
-  // Determine "isCourtDecision" based on our previous logic
-  const isCourtDecision = !!decision.hasCourtDecision || decision.karar_sonucu?.toLowerCase().includes('mahkeme') || decision.baslik?.toLowerCase().includes('mahkeme');
-
   const title = decision.baslik || "Başlıksız Karar";
 
   return (
